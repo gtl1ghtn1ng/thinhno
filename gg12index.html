@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>bạn Quân giấu tên kêu em làm 🐧</title>
+    <!-- Tải Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* Dark background */
+            color: #c9d1d9;
+        }
+        .container-main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+        }
+        .bet-button:hover {
+            background-color: #238636;
+        }
+        /* Custom scrollbar for dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #161b22;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #484f58;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #5c626c;
+        }
+        /* Live odds animation styles */
+        .odds-up {
+            color: #f87171; /* Red */
+            animation: flashRed 0.5s ease-in-out;
+        }
+        .odds-down {
+            color: #34d399; /* Green */
+            animation: flashGreen 0.5s ease-in-out;
+        }
+        @keyframes flashRed {
+            0% { background-color: rgba(248, 113, 113, 0.3); }
+            100% { background-color: transparent; }
+        }
+        @keyframes flashGreen {
+            0% { background-color: rgba(52, 211, 153, 0.3); }
+            100% { background-color: transparent; }
+        }
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SYSTEM MODAL FOR NOTIFICATIONS -->
+    <div id="system-modal" class="modal-overlay hidden">
+        <div class="card rounded-xl p-6 w-96 shadow-2xl transform transition-all duration-300 scale-95">
+            <h3 id="modal-title" class="text-xl font-bold mb-3 border-b border-gray-700 pb-2 text-white"></h3>
+            <p id="modal-message" class="text-gray-300 mb-4"></p>
+            <div class="flex justify-end">
+                <button onclick="document.getElementById('system-modal').classList.add('hidden')"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- END SYSTEM MODAL -->
+
+    <div class="container-main">
+        <!-- HEADER / WALLET / AUTH STATUS -->
+        <header class="flex justify-between items-center py-4 border-b border-gray-700">
+            <h1 class="text-3xl font-extrabold text-white tracking-widest">bạn Quân giấu tên kêu em làm 🐧</h1>
+            <div id="wallet-info" class="flex items-center space-x-4">
+                <span class="text-lg font-semibold text-green-400">
+                    Ví: <span id="user-balance">Loading...</span> VND
+                </span>
+                
+                <!-- LOAN BUTTON -->
+                <button id="loan-button" class="bg-yellow-600 hover:bg-yellow-700 text-gray-900 font-bold py-2 px-3 rounded-lg text-sm hidden transition duration-200" disabled>
+                    VAY TIỀN (Sẵn sàng sau 60s)
+                </button>
+
+                <span id="user-id-display" class="text-sm text-gray-400 p-2 rounded-full bg-gray-800">
+                    ID: Loading...
+                </span>
+            </div>
+        </header>
+
+        <!-- MAIN LAYOUT -->
+        <main class="flex flex-col lg:flex-row mt-6 gap-6">
+
+            <!-- COLUMN 1: LIVE MATCHES & ODDS -->
+            <div class="flex-grow lg:w-3/4">
+
+                <!-- HOT BANNER -->
+                <div class="card rounded-xl p-4 mb-6 shadow-xl bg-purple-900/30 border-purple-800">
+                    <h2 class="text-2xl font-bold text-yellow-300">🎉 Thắng lớn hôm nay! 🎉</h2>
+                    <p class="text-gray-300 mt-1">Hơn 500 kèo cược được thanh toán thành công trong 1 giờ qua. Đặt kèo ngay!</p>
+                </div>
+
+                <!-- LIVE SCORES & ODDS INTERFACE -->
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-white">TRỰC TIẾP & SẮP DIỄN RA</h2>
+                    <div class="space-x-2">
+                        <button id="resolve-button" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+                            Xử Lý Kèo (Manual Resolve)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- MATCH LIST -->
+                <div id="matches-container" class="space-y-4">
+                    <!-- Matches will be rendered here -->
+                </div>
+            </div>
+
+            <!-- COLUMN 2: BET SLIP & LIVE CHAT -->
+            <div class="lg:w-1/4 space-y-6 sticky top-4 self-start">
+                
+                <!-- BET SLIP -->
+                <div id="bet-slip" class="card rounded-xl p-4 shadow-xl">
+                    <h3 class="text-lg font-bold mb-3 border-b border-gray-700 pb-2">PHIẾU CƯỢC</h3>
+                    <div id="selected-bet" class="text-sm p-3 bg-gray-800 rounded-lg hidden">
+                        <p class="font-semibold text-white mb-1" id="slip-match-name"></p>
+                        <p class="text-gray-400" id="slip-bet-type"></p>
+                        <p class="text-lg font-extrabold text-yellow-400 mt-1">Tỉ lệ: <span id="slip-odd-value"></span></p>
+                    </div>
+                    
+                    <div id="bet-form" class="mt-4">
+                        <label for="bet-amount" class="block text-sm font-medium mb-2">Số tiền cược (VND)</label>
+                        <input type="number" id="bet-amount" min="10000" placeholder="Tối thiểu 10,000"
+                               class="w-full p-2 rounded-lg bg-gray-700 border border-gray-600 text-white focus:ring-green-500 focus:border-green-500" disabled>
+                        
+                        <div class="mt-3 text-sm">
+                            <p class="text-gray-400">Tiền thắng dự kiến:</p>
+                            <p class="text-white font-bold" id="potential-win">0 VND</p>
+                        </div>
+                        
+                        <button id="place-bet-button"
+                                class="w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-extrabold py-2 rounded-lg transition duration-200" disabled>
+                            ĐẶT CƯỢC NGAY
+                        </button>
+                    </div>
+
+                    <div id="bet-message" class="mt-3 text-center text-sm font-semibold hidden"></div>
+                </div>
+
+                <!-- LIVE CHAT / SUPPORT -->
+                <div class="card rounded-xl p-4 shadow-xl">
+                    <h3 class="text-lg font-bold mb-3 border-b border-gray-700 pb-2">CHĂM SÓC KHÁCH HÀNG 24/7</h3>
+                    <div class="text-center text-gray-400">
+                        <svg class="w-8 h-8 mx-auto text-green-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                        <p>Tư vấn viên xinh xắn luôn sẵn sàng hỗ trợ khi bạn gặp khó khăn.</p>
+                        <button class="mt-3 text-sm text-blue-400 hover:text-blue-300">Bắt đầu Live Chat</button>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- BET HISTORY -->
+        <section class="mt-10 mb-10">
+            <h2 class="text-xl font-bold text-white mb-4">LỊCH SỬ CƯỢC CỦA BẠN</h2>
+            <div class="card rounded-xl p-4 overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead>
+                        <tr class="text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
+                            <th class="py-3 px-4">Trận Đấu</th>
+                            <th class="py-3 px-4">Kèo Cược</th>
+                            <th class="py-3 px-4">Tỉ Lệ</th>
+                            <th class="py-3 px-4">Cược (VND)</th>
+                            <th class="py-3 px-4 text-center">Trạng Thái</th>
+                            <th class="py-3 px-4 text-right">Thắng/Thua (VND)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bet-history-body" class="divide-y divide-gray-800">
+                        <tr>
+                            <td colspan="6" class="py-4 px-4 text-center text-gray-500">Chưa có kèo cược nào.</td>
+                        </tr>
+                        <!-- History rows will be rendered here -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- Firebase Imports -->
+    <script type="module">
+        /* * CHÚ Ý QUAN TRỌNG:
+        * Ứng dụng này sử dụng ES Modules (import { ... } from "https://..."). 
+        * Để chạy trên Google Sites: KHÔNG DÁN code này vào hộp thoại "Nhúng mã HTML".
+        * CÁCH LÀM ĐÚNG:
+        * 1. Lưu file HTML này lên một Hosting công khai (Ví dụ: Firebase Hosting, GitHub Pages).
+        * 2. Lấy URL công khai của file.
+        * 3. Trên Google Sites, dùng tính năng NHÚNG (Embed) và dán URL vào đó (Nhúng qua iFrame).
+        */
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, runTransaction, collection, query, where, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL VARIABLES (Provided by Canvas) ---
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app;
+        let db;
+        let auth;
+        let userId = null;
+        let matches = []; // Store current matches data
+
+        // --- GAME CONSTANTS ---
+        const INITIAL_BALANCE = 5000000; // 5 Million VND
+        const MIN_BET_AMOUNT = 10000;
+        const ODDS_UPDATE_INTERVAL = 300000; // 5 minutes in ms
+        const RESOLUTION_CHECK_INTERVAL = 30000; // Check resolution every 30 seconds
+        const SIMULATION_RATIO = 10000; // 10 seconds real time = 1 minute game time (1:10 ratio)
+        
+        // --- LOAN CONSTANTS ---
+        const LOAN_THRESHOLD = INITIAL_BALANCE * 0.2; // 1,000,000 VND
+        const LOAN_AMOUNT = 500000; // 500,000 VND loan
+        const LOAN_COOLDOWN = 60000; // 1 minute cooldown
+
+        // --- STATE FOR BET SLIP ---
+        let selectedMatch = null;
+        let selectedOddKey = null;
+
+        // --- UTILITY FUNCTIONS ---
+
+        /** Formats number to Vietnamese currency string */
+        const formatCurrency = (amount) => {
+            if (typeof amount !== 'number' || isNaN(amount)) return '0 VND';
+            return amount.toLocaleString('vi-VN') + ' VND';
+        };
+        
+        /** Shows the system modal for notifications */
+        const showSystemModal = (title, message, type = 'info') => {
+            const modal = document.getElementById('system-modal');
+            const titleEl = document.getElementById('modal-title');
+            const messageEl = document.getElementById('modal-message');
+
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            
+            // Customize title color based on type
+            titleEl.className = 'text-xl font-bold mb-3 border-b pb-2';
+            switch(type) {
+                case 'success':
+                    titleEl.classList.add('text-green-400', 'border-green-700');
+                    break;
+                case 'error':
+                    titleEl.classList.add('text-red-400', 'border-red-700');
+                    break;
+                case 'alert':
+                    titleEl.classList.add('text-yellow-400', 'border-yellow-700');
+                    break;
+                default:
+                    titleEl.classList.add('text-blue-400', 'border-blue-700');
+            }
+
+            modal.classList.remove('hidden');
+        };
+
+        /** Gets the Firestore document path for the user's wallet */
+        const getWalletDocRef = (uid) => doc(db, `artifacts/${appId}/users/${uid}/wallet/main`);
+
+        /** Gets the Firestore collection path for the user's bet history */
+        const getBetHistoryColRef = (uid) => collection(db, `artifacts/${appId}/users/${uid}/bet_history`);
+
+        /** Gets the Firestore document path for the main match data */
+        const getMatchesDocRef = () => doc(db, `artifacts/${appId}/public/data/matches/live`);
+
+        /** Generates a random odd change for simulation */
+        const perturbOdd = (currentOdd) => {
+            const change = (Math.random() * 0.2 - 0.1); // Change between -0.1 and +0.1
+            const newOdd = currentOdd + change;
+            return Math.max(1.05, Math.round(newOdd * 100) / 100); // Ensure minimum 1.05 and 2 decimal places
+        };
+
+        /** Generates random score update based on probability */
+        const generateScoreUpdate = (currentScore) => {
+            // Low probability of scoring every minute
+            if (Math.random() < 0.05) {
+                return currentScore + 1;
+            }
+            return currentScore;
+        };
+        
+        // --- FIREBASE INITIALIZATION & AUTH ---
+
+        /** Initializes Firebase app and signs in the user */
+        const initFirebase = async () => {
+            try {
+                if (Object.keys(firebaseConfig).length === 0) {
+                    console.error("Firebase config not available. Cannot initialize Firestore.");
+                    return;
+                }
+
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                let userCredential;
+                if (initialAuthToken) {
+                    userCredential = await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    userCredential = await signInAnonymously(auth);
+                }
+                
+                userId = userCredential.user.uid;
+                
+                // Update UI immediately
+                document.getElementById('user-id-display').textContent = `ID: ${userId.substring(0, 8)}...`;
+
+                // Start necessary listeners and simulations after successful authentication
+                await setupWalletListener(userId);
+                await setupBetHistoryListener(userId);
+                startMatchDataSimulation();
+                startLiveScoreSimulation();
+                
+                // Start automated bet resolution check
+                setInterval(resolvePendingBets, RESOLUTION_CHECK_INTERVAL);
+
+            } catch (error) {
+                console.error("Firebase Initialization or Sign-in Failed:", error);
+                document.getElementById('user-balance').textContent = 'AUTH ERROR';
+            }
+        };
+
+        // --- WALLET SYSTEM & LOAN LOGIC ---
+
+        /** Updates the loan button state based on balance and cooldown */
+        const updateLoanButtonState = (balance, lastLoanTime = 0) => {
+            const loanButton = document.getElementById('loan-button');
+            const now = new Date().getTime();
+            const timeSinceLastLoan = now - lastLoanTime;
+            
+            if (balance < LOAN_THRESHOLD) {
+                loanButton.classList.remove('hidden');
+                
+                if (timeSinceLastLoan >= LOAN_COOLDOWN) {
+                    loanButton.disabled = false;
+                    loanButton.textContent = `VAY TIỀN (${formatCurrency(LOAN_AMOUNT)})`;
+                } else {
+                    const timeRemaining = Math.ceil((LOAN_COOLDOWN - timeSinceLastLoan) / 1000);
+                    loanButton.disabled = true;
+                    loanButton.textContent = `VAY TIỀN (Sẵn sàng sau ${timeRemaining}s)`;
+                }
+            } else {
+                loanButton.classList.add('hidden');
+            }
+        };
+
+        /** Executes the loan transaction */
+        const requestLoan = async () => {
+            if (!userId) return;
+
+            const walletRef = getWalletDocRef(userId);
+            
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const walletDoc = await transaction.get(walletRef);
+                    if (!walletDoc.exists()) throw new Error("Ví tiền không tồn tại.");
+                    
+                    const data = walletDoc.data();
+                    const currentBalance = data.balance;
+                    const lastLoanTime = data.lastLoanTime || 0;
+                    const now = new Date().getTime();
+
+                    if (currentBalance >= LOAN_THRESHOLD) {
+                        throw new Error(`Số dư vẫn cao. Chỉ có thể vay khi dưới ${formatCurrency(LOAN_THRESHOLD)}.`);
+                    }
+
+                    if (now - lastLoanTime < LOAN_COOLDOWN) {
+                        const timeRemaining = Math.ceil((LOAN_COOLDOWN - (now - lastLoanTime)) / 1000);
+                        throw new Error(`Bạn phải chờ ${timeRemaining} giây nữa để vay tiếp.`);
+                    }
+
+                    // Grant Loan
+                    const newBalance = currentBalance + LOAN_AMOUNT;
+                    transaction.update(walletRef, { 
+                        balance: newBalance,
+                        lastLoanTime: now,
+                    });
+                });
+
+                showSystemModal("VAY TIỀN THÀNH CÔNG", `Đã cộng ${formatCurrency(LOAN_AMOUNT)} vào ví của bạn. Hãy chơi cẩn thận!`, 'success');
+            } catch (error) {
+                console.error("Loan Transaction Failed:", error);
+                showSystemModal("GIAO DỊCH THẤT BẠI", error.message, 'error');
+            }
+        };
+
+
+        /** Sets up the user wallet document and starts the real-time listener */
+        const setupWalletListener = async (uid) => {
+            if (!db || !uid) return;
+
+            const walletRef = getWalletDocRef(uid);
+            
+            try {
+                // Use Transaction to check balance and auto-fund/init if necessary
+                await runTransaction(db, async (transaction) => {
+                    const walletDoc = await transaction.get(walletRef);
+                    
+                    if (!walletDoc.exists() || (walletDoc.exists() && walletDoc.data().balance < MIN_BET_AMOUNT)) {
+                        console.log("Wallet needs initialization or top-up. Setting to initial balance.");
+                        transaction.set(walletRef, { balance: INITIAL_BALANCE, lastLoanTime: 0 });
+                        return INITIAL_BALANCE;
+                    }
+                    return walletDoc.data().balance;
+                });
+
+                // Start real-time listener after transaction is complete
+                onSnapshot(walletRef, (doc) => {
+                    if (doc.exists()) {
+                        const data = doc.data();
+                        const balance = data.balance;
+                        document.getElementById('user-balance').textContent = formatCurrency(balance);
+                        
+                        // Check loan threshold and update button state
+                        updateLoanButtonState(balance, data.lastLoanTime || 0);
+                    }
+                }, (error) => {
+                    console.error("Error listening to wallet changes:", error);
+                });
+            } catch (e) {
+                console.error("Wallet Transaction Failed:", e);
+            }
+        };
+
+        // --- BETTING INTERFACE LOGIC ---
+
+        /** Handles click on an odd (1, X, 2) to open the bet slip */
+        const selectOdd = (matchId, oddKey, oddValue) => {
+            selectedMatch = matches.find(m => m.id === matchId);
+            selectedOddKey = oddKey;
+
+            const oddNameMap = { 'odd1': 'Thắng Chủ', 'oddX': 'Hòa', 'odd2': 'Thắng Khách' };
+
+            document.getElementById('slip-match-name').textContent = `${selectedMatch.homeTeam} vs ${selectedMatch.awayTeam}`;
+            document.getElementById('slip-bet-type').textContent = `Kèo: ${oddNameMap[oddKey]} (${selectedOddKey.toUpperCase()})`;
+            document.getElementById('slip-odd-value').textContent = oddValue;
+            
+            document.getElementById('selected-bet').classList.remove('hidden');
+            document.getElementById('bet-amount').value = MIN_BET_AMOUNT;
+            document.getElementById('bet-amount').min = MIN_BET_AMOUNT;
+            document.getElementById('bet-amount').disabled = false;
+            document.getElementById('place-bet-button').disabled = false;
+            calculatePotentialWin();
+        };
+
+        /** Calculates and updates the potential win amount */
+        const calculatePotentialWin = () => {
+            const amountInput = document.getElementById('bet-amount');
+            const amount = parseFloat(amountInput.value);
+            const oddValue = parseFloat(document.getElementById('slip-odd-value').textContent);
+            
+            const winAmount = isNaN(amount) ? 0 : amount * oddValue;
+            document.getElementById('potential-win').textContent = formatCurrency(winAmount);
+        };
+
+        /** Handles placing the bet via Firestore Transaction */
+        const placeBet = async () => {
+            if (!userId || !selectedMatch || !selectedOddKey) return;
+
+            const amountInput = document.getElementById('bet-amount');
+            const amount = parseFloat(amountInput.value);
+            const oddValue = parseFloat(document.getElementById('slip-odd-value').textContent);
+
+            if (isNaN(amount) || amount < MIN_BET_AMOUNT) {
+                showSystemModal("Đặt Cược Thất Bại", "Vui lòng nhập số tiền cược tối thiểu là 10,000 VND.", 'error');
+                return;
+            }
+
+            const walletRef = getWalletDocRef(userId);
+            const historyColRef = getBetHistoryColRef(userId);
+            
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const walletDoc = await transaction.get(walletRef);
+
+                    if (!walletDoc.exists()) throw new Error("Ví tiền không tồn tại. Vui lòng thử lại.");
+                    
+                    const currentBalance = walletDoc.data().balance;
+                    if (currentBalance < amount) {
+                        throw new Error("Số dư không đủ để đặt cược.");
+                    }
+                    
+                    // 1. Deduct balance
+                    const newBalance = currentBalance - amount;
+                    transaction.update(walletRef, { balance: newBalance });
+
+                    // 2. Add bet to history (Pending status)
+                    const betData = {
+                        userId: userId,
+                        matchId: selectedMatch.id,
+                        homeTeam: selectedMatch.homeTeam,
+                        awayTeam: selectedMatch.awayTeam,
+                        betTime: new Date().getTime(),
+                        oddKey: selectedOddKey,
+                        oddValue: oddValue,
+                        stake: amount,
+                        status: 'Pending',
+                        result: null, // '1', 'X', '2'
+                        payout: 0,
+                    };
+                    
+                    // NOTE: Use addDoc outside transaction for simple prototype collection writing.
+                    await addDoc(historyColRef, betData); 
+                });
+
+                showSystemModal("Đặt Cược Thành Công", `Bạn vừa cược ${formatCurrency(amount)} vào trận ${selectedMatch.homeTeam} vs ${selectedMatch.awayTeam}. Chúc may mắn!`, 'success');
+                document.getElementById('place-bet-button').disabled = true;
+
+            } catch (error) {
+                console.error("Betting Transaction Failed:", error);
+                const errorMessage = error.message.includes("Số dư không đủ") ? "Số dư không đủ để đặt cược." : "Đặt cược thất bại do lỗi hệ thống.";
+                showSystemModal("Đặt Cược Thất Bại", errorMessage, 'error');
+            }
+        };
+
+        // --- MATCH DATA AND ODDS SIMULATION ---
+
+        /** Renders all matches to the UI */
+        const renderMatches = () => {
+            const container = document.getElementById('matches-container');
+            container.innerHTML = '';
+
+            const oddNameMap = { 'odd1': '1', 'oddX': 'X', 'odd2': '2' };
+            
+            matches.forEach(match => {
+                const isLive = match.matchState === 'Live';
+                const statusColor = isLive ? 'text-red-500' : 'text-gray-400';
+                const statusText = isLive ? `LIVE ${match.gameMinute}'` : 'SẮP DIỄN RA';
+                
+                const matchEl = document.createElement('div');
+                // Use a dedicated class or ID for each match row to target for score/minute updates
+                matchEl.id = `match-row-${match.id}`;
+                matchEl.className = 'card rounded-xl p-4 flex items-center justify-between shadow-md transition duration-150 ease-in-out hover:bg-gray-800';
+                matchEl.innerHTML = `
+                    <div class="flex-1 min-w-0 pr-4">
+                        <div class="flex items-center space-x-2 text-sm font-semibold mb-1">
+                            <span class="match-status ${statusColor}">${statusText}</span>
+                            ${isLive ? `<span class="text-white text-xl font-extrabold match-score">${match.scoreHome} - ${match.scoreAway}</span>` : ''}
+                            ${match.matchState === 'Finished' ? '<span class="text-yellow-400 font-extrabold">FT</span>' : ''}
+                        </div>
+                        <p class="text-white text-lg font-bold truncate">${match.homeTeam} <span class="text-gray-500 font-normal">vs</span> ${match.awayTeam}</p>
+                    </div>
+                    
+                    <!-- Odds Buttons -->
+                    <div class="flex space-x-3 flex-shrink-0">
+                        ${['odd1', 'oddX', 'odd2'].map(oddKey => `
+                            <button 
+                                id="odd-${match.id}-${oddKey}"
+                                onclick="window.selectOdd('${match.id}', '${oddKey}', ${match.odds[oddKey]})"
+                                class="bet-button card w-20 py-2 px-1 text-center rounded-lg border-2 border-green-700 bg-green-900/40 hover:bg-green-700 transition duration-150">
+                                <span class="block text-sm font-medium text-gray-300">${oddNameMap[oddKey]}</span>
+                                <span class="block text-lg font-bold text-white odd-value">${match.odds[oddKey].toFixed(2)}</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(matchEl);
+            });
+        };
+
+        /** Updates the odds of all matches (called periodically) */
+        const updateOdds = () => {
+            if (matches.length === 0) return;
+
+            matches.forEach(match => {
+                let changed = false;
+                
+                // Only perturb odds for live/scheduled matches
+                if (match.matchState !== 'Finished') {
+                    for (const oddKey in match.odds) {
+                        const oldOdd = match.odds[oddKey];
+                        const newOdd = perturbOdd(oldOdd);
+                        
+                        if (newOdd !== oldOdd) {
+                            match.odds[oddKey] = newOdd;
+                            changed = true;
+
+                            // Apply animation class
+                            const oddButton = document.getElementById(`odd-${match.id}-${oddKey}`);
+                            if (oddButton) {
+                                const oddSpan = oddButton.querySelector('.odd-value');
+                                oddSpan.textContent = newOdd.toFixed(2);
+                                
+                                const changeClass = newOdd > oldOdd ? 'odds-up' : 'odds-down';
+                                oddButton.classList.add(changeClass);
+                                setTimeout(() => oddButton.classList.remove('odds-up', 'odds-down'), 500);
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Re-render only if necessary
+            // Note: Since we are updating specific spans, we don't need a full re-render here
+            // but we must re-render the Bet Slip if the selected odd changed
+            if (selectedMatch && selectedMatch.id) {
+                const currentOdd = matches.find(m => m.id === selectedMatch.id)?.odds[selectedOddKey];
+                if (currentOdd) {
+                    document.getElementById('slip-odd-value').textContent = currentOdd.toFixed(2);
+                    calculatePotentialWin();
+                }
+            }
+        };
+
+        /** Simulates minute-by-minute progress and scoring for LIVE matches (1:10 ratio) */
+        const simulateMatchProgress = () => {
+            if (matches.length === 0) return;
+
+            matches.forEach(match => {
+                if (match.matchState === 'Live' && match.gameMinute < 90) {
+                    
+                    const oldScoreHome = match.scoreHome;
+                    const oldScoreAway = match.scoreAway;
+
+                    match.gameMinute = Math.min(90, match.gameMinute + 1); // Advance 1 game minute
+                    
+                    // Simulate scoring logic (e.g., 5% chance per minute)
+                    match.scoreHome = generateScoreUpdate(match.scoreHome);
+                    match.scoreAway = generateScoreUpdate(match.scoreAway);
+
+                    // --- UI UPDATE LOGIC ---
+                    const matchRow = document.getElementById(`match-row-${match.id}`);
+                    if (matchRow) {
+                        const scoreEl = matchRow.querySelector('.match-score');
+                        const statusEl = matchRow.querySelector('.match-status');
+
+                        // 1. Update Score and Minute
+                        if (scoreEl) {
+                            scoreEl.textContent = `${match.scoreHome} - ${match.scoreAway}`;
+                        }
+                        if (statusEl) {
+                            statusEl.textContent = `LIVE ${match.gameMinute}'`;
+                        }
+
+                        // 2. Check for new score and show modal
+                        if (match.scoreHome > oldScoreHome || match.scoreAway > oldScoreAway) {
+                            const scorer = match.scoreHome > oldScoreHome ? match.homeTeam : match.awayTeam;
+                            showSystemModal("GOL!", `${scorer} vừa ghi bàn! Tỉ số hiện tại: ${match.scoreHome} - ${match.scoreAway}`, 'alert');
+                        }
+                        
+                        // 3. Check for Full Time
+                        if (match.gameMinute >= 90) {
+                            match.matchState = 'Finished';
+                            // Update UI to FT
+                            if (statusEl) {
+                                statusEl.className = 'match-status text-yellow-400 font-extrabold';
+                                statusEl.textContent = 'FT';
+                            }
+
+                            // Immediately call resolution for this finished match
+                            resolvePendingBets(true); 
+                        }
+                    }
+                }
+            });
+        };
+
+        /** Fetches initial matches data or creates it if not exists, then starts simulation */
+        const startMatchDataSimulation = async () => {
+            const matchesRef = getMatchesDocRef();
+            const initialMatches = [
+                { id: 'm1', homeTeam: 'Manchester UTD', awayTeam: 'Liverpool FC', scoreHome: 0, scoreAway: 0, gameMinute: 0, matchState: 'Live', odds: { odd1: 2.10, oddX: 3.40, odd2: 3.50 } },
+                { id: 'm2', homeTeam: 'Real Madrid', awayTeam: 'FC Barcelona', scoreHome: 0, scoreAway: 0, gameMinute: 0, matchState: 'Live', odds: { odd1: 1.95, oddX: 3.80, odd2: 3.75 } },
+                { id: 'm3', homeTeam: 'Bayern Munich', awayTeam: 'Borussia Dortmund', scoreHome: 0, scoreAway: 0, gameMinute: 0, matchState: 'Scheduled', odds: { odd1: 1.50, oddX: 4.50, odd2: 5.50 } },
+            ];
+
+            try {
+                // We use getDocs on the parent collection to check for the existence of the document
+                const matchCollection = collection(db, `artifacts/${appId}/public/data/matches`);
+                const docSnap = await getDocs(matchCollection);
+                
+                let dataToUse = initialMatches;
+
+                // Attempt to find the specific document we care about
+                const liveMatchDoc = docSnap.docs.find(d => d.id === 'live');
+                
+                if (liveMatchDoc && liveMatchDoc.exists()) {
+                    dataToUse = liveMatchDoc.data().matches || initialMatches;
+                    console.log("Using existing match data.");
+                } else {
+                    console.log("No match data found. Initializing mock data.");
+                    await setDoc(matchesRef, { matches: initialMatches });
+                }
+
+                matches = dataToUse;
+                renderMatches();
+
+                // Start real-time listener for match data changes
+                onSnapshot(matchesRef, (doc) => {
+                    if (doc.exists()) {
+                        matches = doc.data().matches || [];
+                        renderMatches();
+                    }
+                }, (error) => {
+                    console.error("Error listening to matches changes:", error);
+                });
+
+            } catch (error) {
+                console.error("Error setting up match data:", error);
+            }
+        };
+
+        /** Starts the periodic odds update simulation */
+        const startOddsSimulation = () => {
+            // Start odds update simulation (every 5 minutes)
+            setInterval(updateOdds, ODDS_UPDATE_INTERVAL);
+        };
+        
+        /** Starts the periodic live score update simulation (1 game minute every SIMULATION_RATIO ms) */
+        const startLiveScoreSimulation = () => {
+            // Start live score simulation (1 game minute every SIMULATION_RATIO ms)
+            setInterval(simulateMatchProgress, SIMULATION_RATIO);
+        };
+
+        // --- BET RESOLUTION AND PAYOUT ---
+
+        /** Determines the winning odd key ('1', 'X', '2') based on final score */
+        const getWinningOddKey = (scoreHome, scoreAway) => {
+            if (scoreHome > scoreAway) return 'odd1';
+            if (scoreHome < scoreAway) return 'odd2';
+            return 'oddX';
+        };
+
+        /** Resolves all pending bets for finished matches */
+        const resolvePendingBets = async (isAutoCall = false) => {
+            if (!userId) return;
+
+            const historyQuery = query(getBetHistoryColRef(userId), where("status", "==", "Pending"));
+
+            try {
+                const pendingBetsSnapshot = await getDocs(historyQuery);
+                if (pendingBetsSnapshot.empty) return;
+                
+                let resolvedCount = 0;
+                
+                // Get all finished matches data
+                const finishedMatches = matches.filter(m => m.matchState === 'Finished');
+                const finishedMatchIds = finishedMatches.map(m => m.id);
+
+                for (const betDoc of pendingBetsSnapshot.docs) {
+                    const bet = betDoc.data();
+                    const betId = betDoc.id;
+
+                    if (finishedMatchIds.includes(bet.matchId)) {
+                        
+                        const match = finishedMatches.find(m => m.id === bet.matchId);
+                        const finalResultKey = getWinningOddKey(match.scoreHome, match.scoreAway);
+
+                        const isWinner = bet.oddKey === finalResultKey;
+                        const payoutAmount = isWinner ? bet.stake * bet.oddValue : 0;
+                        const finalStatus = isWinner ? 'Won' : 'Lost';
+                        
+                        const walletRef = getWalletDocRef(userId);
+
+                        // Use Transaction to handle payout and update history
+                        await runTransaction(db, async (transaction) => {
+                            const walletDoc = await transaction.get(walletRef);
+                            const currentBalance = walletDoc.data().balance;
+                            
+                            // 1. Update wallet balance
+                            const newBalance = currentBalance + payoutAmount;
+                            transaction.update(walletRef, { balance: newBalance });
+
+                            // 2. Update bet status in history
+                            transaction.update(doc(db, `artifacts/${appId}/users/${userId}/bet_history`, betId), {
+                                status: finalStatus,
+                                result: `${match.scoreHome} - ${match.scoreAway}`,
+                                payout: payoutAmount,
+                                finalOdd: bet.oddValue // Use the odd value at the time of placing the bet
+                            });
+                        });
+                        resolvedCount++;
+                    }
+                }
+                
+                if (resolvedCount > 0 && !isAutoCall) {
+                     showSystemModal("Thanh Toán Thành Công", `Đã xử lý ${resolvedCount} kèo cược cho các trận đã kết thúc.`, 'info');
+                }
+
+            } catch (error) {
+                console.error("Error resolving bets:", error);
+            }
+        };
+
+        // --- BET HISTORY DISPLAY ---
+
+        /** Sets up the real-time listener for user's bet history */
+        const setupBetHistoryListener = async (uid) => {
+            if (!db || !uid) return;
+
+            const historyColRef = getBetHistoryColRef(uid);
+            const historyQuery = query(historyColRef); // No order by to avoid index issues
+
+            onSnapshot(historyQuery, (snapshot) => {
+                const historyBody = document.getElementById('bet-history-body');
+                
+                if (snapshot.empty) {
+                    historyBody.innerHTML = `<tr><td colspan="6" class="py-4 px-4 text-center text-gray-500">Chưa có kèo cược nào.</td></tr>`;
+                    return;
+                }
+
+                historyBody.innerHTML = ''; // Clear existing rows
+                
+                // Sort client-side by betTime (newest first)
+                const historyData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                historyData.sort((a, b) => b.betTime - a.betTime);
+
+
+                historyData.forEach(bet => {
+                    let statusClass = 'bg-gray-700 text-white';
+                    let payoutText = formatCurrency(bet.payout);
+                    let payoutClass = 'text-gray-400';
+
+                    switch (bet.status) {
+                        case 'Won':
+                            statusClass = 'bg-green-600 text-white';
+                            payoutClass = 'text-green-400 font-extrabold';
+                            break;
+                        case 'Lost':
+                            statusClass = 'bg-red-600 text-white';
+                            payoutText = '-' + formatCurrency(bet.stake);
+                            payoutClass = 'text-red-400 font-extrabold';
+                            break;
+                        case 'Pending':
+                            statusClass = 'bg-yellow-600 text-gray-900';
+                            payoutText = 'N/A';
+                            payoutClass = 'text-yellow-600';
+                            break;
+                    }
+                    
+                    const oddNameMap = { 'odd1': '1', 'oddX': 'X', 'odd2': '2' };
+                    const betResult = bet.result ? `(${bet.result})` : '';
+
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-800 transition duration-150';
+                    row.innerHTML = `
+                        <td class="py-3 px-4 text-sm font-medium text-white">${bet.homeTeam} vs ${bet.awayTeam}</td>
+                        <td class="py-3 px-4 text-sm text-gray-300 font-semibold">${oddNameMap[bet.oddKey]} @ ${bet.oddValue.toFixed(2)} ${betResult}</td>
+                        <td class="py-3 px-4 text-sm text-gray-300">${bet.oddValue.toFixed(2)}</td>
+                        <td class="py-3 px-4 text-sm text-gray-300">${formatCurrency(bet.stake)}</td>
+                        <td class="py-3 px-4 text-center">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                                ${bet.status.toUpperCase()}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 text-right text-sm ${payoutClass}">${payoutText}</td>
+                    `;
+                    historyBody.appendChild(row);
+                });
+            }, (error) => {
+                console.error("Error listening to bet history:", error);
+            });
+        };
+
+        // --- EVENT LISTENERS ---
+        window.onload = () => {
+            initFirebase();
+            
+            // Set global functions for use in inline HTML
+            window.selectOdd = selectOdd;
+            window.requestLoan = requestLoan; // Make loan function globally accessible
+            
+            document.getElementById('bet-amount').addEventListener('input', calculatePotentialWin);
+            document.getElementById('place-bet-button').addEventListener('click', placeBet);
+            document.getElementById('resolve-button').addEventListener('click', () => {
+                resolvePendingBets(false);
+            });
+            document.getElementById('loan-button').addEventListener('click', requestLoan);
+
+            // Start passive simulations
+            startOddsSimulation();
+            
+            // Recheck loan cooldown periodically
+            setInterval(() => {
+                if (userId) {
+                    const walletRef = getWalletDocRef(userId);
+                    onSnapshot(walletRef, (doc) => {
+                        if (doc.exists()) {
+                            const data = doc.data();
+                            updateLoanButtonState(data.balance, data.lastLoanTime || 0);
+                        }
+                    });
+                }
+            }, 5000); // Check every 5 seconds
+        };
+    </script>
+</body>
+</html>
+
